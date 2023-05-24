@@ -1,14 +1,10 @@
 import zmq
 import threading
-import time
 from PyQt6.QtWidgets import *
 import sys
 from datetime import datetime
 from multiprocessing import Queue
 from PyQt6 import QtCore
-from Crypto.PublicKey import RSA
-from Crypto.Cipher import PKCS1_OAEP
-import random
 import re
 from hashlib import sha256
 from base64 import b64decode
@@ -34,9 +30,7 @@ class welcomeWindow(QWidget):
 
     def enteredInput(self):
         self.inputtedName = self.nameInput.text()
-        #self.nameInput.hide()
-        #self.taskName.setText("Please wait to another user, and for establishing secure connection!")
-        #self.taskName.setGeometry(70,70,360,40)
+
     def getInputtedName(self):
         return self.inputtedName  
 
@@ -46,7 +40,7 @@ class Window(QWidget):
         self.setWindowTitle("CrypText")
         self.setFixedSize(1280,720)
         self.widgets()
-        
+
         # setupUi
     def widgets(self):
         pushButton = QPushButton("Send message",self)
@@ -68,25 +62,20 @@ class Window(QWidget):
         self.label.setText(f"Chatting with {text}")
 
     def addMessageToList(self):
-        global main_buffor
         now = datetime.now()
         messageDate = str(now.strftime("%d/%m/%Y %H:%M:%S"))
-        temp_msg = self.lineEdit.toPlainText() 
-        self.plainTextEdit.appendPlainText(messageDate + " " + ownUserName + "\n" + temp_msg)
+        temp_msg = self.lineEdit.toPlainText()
+        to_add = messageDate + " " + ownUserName + "\n" + temp_msg + "\n"
+        self.plainTextEdit.insertPlainText(to_add)
         self.lineEdit.clear()
         sendMessage(temp_msg)
 
     def addRecivedMessage(self,message):
-        global main_buffor
         now = datetime.now()
         messageDate = str(now.strftime("%d/%m/%Y %H:%M:%S"))
-        lock.acquire()
-        main_buffor.put(messageDate + " " + secondUser + "\n" + message)
-        lock.release()
-    def updateMainWindow(self, message):
-        print(type(message))
-        self.plainTextEdit.appendPlainText(message)
-
+        #print(message)
+        to_add = messageDate + " " + secondUser + "\n" + message + "\n"
+        self.plainTextEdit.insertPlainText(to_add)
 
 class keyInput(QWidget):
     def __init__(self):
@@ -143,19 +132,6 @@ class keyInput(QWidget):
         if (self.ready == True):
             return self.inputtedP, self.inputtedG, self.inputtedPriv
 
-
-
-def updateMessage():
-    global main_buffor
-    while True:
-        QtCore.QCoreApplication.processEvents()
-        lock.acquire()
-        if not main_buffor.empty():
-            window.updateMainWindow(main_buffor.get())
-        #60 fps
-        lock.release()
-        time.sleep((1/60))
-
 def sendMessage(msg):
         global socket
         encryptedText = encryptMessage(msg)
@@ -166,6 +142,7 @@ def reciveMessage():
     while True:
         QtCore.QCoreApplication.processEvents()
         message = socket.recv()
+        #print("Recived Message")
         #add decryption to message:
         decryptedText = decryptMessage(message)
         window.addRecivedMessage(decryptedText.decode("utf-8"))
@@ -229,7 +206,7 @@ keyScreen = keyInput()
 paramP = 0
 paramG = 0 
 paramPriv = 0 
-
+chat_history = ""
 uniqe_id =  ""
 while uniqe_id == "":
     QtCore.QCoreApplication.processEvents()
@@ -255,7 +232,7 @@ secretValue = paramG ^ paramPriv % paramP
 
 secondUser, sharedValue = getSecureConnection(ownUserName, str(paramP), str(paramG), str(secretValue))
 keyToCipher = sharedValue ^ paramPriv % paramP 
-print(keyToCipher)
+#print(keyToCipher)
 window.setLabel(secondUser)
 
 main_buffor = Queue()
@@ -264,8 +241,6 @@ def main():
     socket.setsockopt(zmq.IDENTITY, uniqe_id)
     socket.connect("tcp://127.0.0.1:%s" %port)
     rcvMSG = threading.Thread(target=reciveMessage)
-    upMSG = threading.Thread(target=updateMessage)
-    upMSG.start()
     rcvMSG.start()
     keyScreen.hide()
     window.show()

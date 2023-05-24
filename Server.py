@@ -35,11 +35,9 @@ while True:
 
     person = socket2.recv().decode('utf-8')
     valueOfPub = socket2.recv().decode('utf-8')
-
-    print('\n', valueOfP, valueOfG, valueOfPub)
+    
     users.append(person)
     pubKeys.append(valueOfPub)
-    print(len(users))
     if len(users) > 1:
         #send to user 0 name of user1
         socket2.send_multipart([bytes(users[0], 'utf-8'),bytes(users[1], 'utf-8')])
